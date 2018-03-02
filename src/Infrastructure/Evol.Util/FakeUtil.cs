@@ -4,6 +4,7 @@ using Evol.Util.Maths;
 
 namespace Evol.Util
 {
+
     public class FakeUtil
     {
         public static Guid CreateGuid()
