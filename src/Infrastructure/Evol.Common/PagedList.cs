@@ -1,9 +1,11 @@
 ﻿using System.Collections.Generic;
+using System;
+using System.Collections;
 
 namespace Evol.Common
 {
 
-    public class PagedList<T> : List<T>, IPaged<T>
+    public class PagedList<T> : IPaged<T> //List<T>, IPaged<T>
     {
 
         public PagedList()
@@ -11,20 +13,26 @@ namespace Evol.Common
         }
         public PagedList(IEnumerable<T> items, int total, int pageIndex, int pageSize)
         {
-            this.AddRange(items);
+            Items = items ?? throw new ArgumentNullException(nameof(items));
             RecordTotal = total;
-            Index = pageIndex;
-            Size = pageSize;
+            PageIndex = pageIndex;
+            PageSize = pageSize;
             PageTotal = total / pageSize;
             if (total % pageSize > 0)
                 PageTotal++;
         }
-        public int PageTotal { set; get; }
 
-        public int RecordTotal { set; get; }
+        public IEnumerable<T> Items { get; private set; }
 
-        public int Index { set; get; }
+        IEnumerable IPaged.Items { get {  return Items; }  }
 
-        public int Size { set; get; }
+        public int PageTotal { private set;  get; }
+
+        public int RecordTotal { private set; get; }
+
+        public int PageIndex { private set; get; }
+
+        public int PageSize { private set; get; }
+
     }
 }

@@ -4,7 +4,7 @@ using System;
 
 namespace Sample.Domain.Models.Entities
 {
-    public class Comment : BaseEntity
+    public class Comment : BaseEntity<Guid>
     {
         public Guid PostId { get; set; }
 

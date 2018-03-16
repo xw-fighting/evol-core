@@ -6,16 +6,19 @@ using Autofac;
 
 namespace Evol.Extensions.Autofac
 {
+    /// <summary>
+    /// Autofac依赖注入管理器，如果用于 Asp.net core web应用，请使用 AspnetCoreAutofacIocManager
+    /// </summary>
     public class AutofacIocManager : IIoCManager, IDisposable
     {
         private readonly ContainerBuilder _builder;
 
-        private readonly Func<IServiceProvider> _serviceProviderChunk;
+        protected Func<IServiceProvider> ServiceProviderChunk { get; private set; }
 
         public AutofacIocManager(ContainerBuilder builder, Func<IServiceProvider> serviceProviderChunk)
         {
             _builder = builder;
-            _serviceProviderChunk = serviceProviderChunk;
+            ServiceProviderChunk = serviceProviderChunk;
             _builder.RegisterInstance<IIoCManager>(this);
         }
 
@@ -31,12 +34,12 @@ namespace Evol.Extensions.Autofac
 
         public void AddPerRequest(Type @interface, Type Impl)
         {
-            _builder.RegisterType(Impl).As(Impl).InstancePerRequest();
+            _builder.RegisterType(Impl).As(Impl).InstancePerLifetimeScope(); //.InstancePerRequest();
         }
 
         public void AddPerRequest<TInterface, TImpl>() where TImpl : TInterface
         {
-            _builder.RegisterType<TImpl>().As<TInterface>().InstancePerRequest();
+            _builder.RegisterType<TImpl>().As<TInterface>().InstancePerLifetimeScope(); 
         }
 
         public void AddSingleInstance(Type @interface, Type Impl)
@@ -58,18 +61,18 @@ namespace Evol.Extensions.Autofac
         {
         }
 
-        public T GetService<T>()
+        public virtual T GetService<T>()
         {
-            var servProvider = _serviceProviderChunk.Invoke();
+            var servProvider = ServiceProviderChunk.Invoke();
             if (servProvider == default(IServiceProvider))
                 return default(T);
             var obj = servProvider.GetService<T>();
             return obj;
         }
 
-        public IEnumerable<T> GetServices<T>()
+        public virtual IEnumerable<T> GetServices<T>()
         {
-            var servProvider = _serviceProviderChunk.Invoke();
+            var servProvider = ServiceProviderChunk.Invoke();
             if (servProvider == default(IServiceProvider))
                 return default(IEnumerable<T>);
             var objs = servProvider.GetServices<T>();

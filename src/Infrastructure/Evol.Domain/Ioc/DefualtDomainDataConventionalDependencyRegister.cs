@@ -9,6 +9,10 @@ using Evol.Configuration.IoC;
 
 namespace Evol.Domain.Ioc
 {
+    /// <summary>
+    /// 默认仓储层组件发现和依赖注册器，在系统启动时被调用，注册进Ioc容器；
+    /// 组件有：IQueryEntry、IRepository<T>，IRepository<T, TKey>、IService
+    /// </summary>
     public class DefualtDomainDataConventionalDependencyRegister : IConventionalDependencyRegister
     {
         public void Register(IIoCManager ioCManager, Assembly assembly)
@@ -26,13 +30,23 @@ namespace Evol.Domain.Ioc
                 var tInfo = type.GetTypeInfo();
                 return tInfo.IsPublic && !tInfo.IsAbstract && tInfo.IsClass && (typeof(IQueryEntry)).GetTypeInfo().IsAssignableFrom(type);
             };
-            var impls = assembly.GetTypes().Where(filter).ToList();
+            List<Type> impls;
+
+            try
+            {
+                impls = assembly.GetTypes().Where(filter).ToList();
+            }
+            catch (Exception ex)
+            {
+                throw ex;
+            }
+
             var interfaceImpls = new List<InterfaceImplPair>();
             if (impls.Count == 0)
                 return interfaceImpls;
             impls.ForEach(t =>
             {
-                var @interface = t.GetTypeInfo().GetInterfaces().SingleOrDefault(i => i.GetTypeInfo().IsGenericType && (typeof(IQueryEntry)).GetTypeInfo().IsAssignableFrom(i));
+                var @interface = t.GetTypeInfo().GetInterfaces().SingleOrDefault(i => i != typeof(IQueryEntry) && (typeof(IQueryEntry)).GetTypeInfo().IsAssignableFrom(i));
                 interfaceImpls.Add(new InterfaceImplPair() { Interface = @interface, Impl = t });
             });
             return interfaceImpls;
@@ -43,7 +57,10 @@ namespace Evol.Domain.Ioc
             Func<Type, bool> filter = type =>
             {
                 var tInfo = type.GetTypeInfo();
-                return tInfo.IsPublic && !tInfo.IsAbstract && tInfo.IsClass && (typeof(IRepository<>)).GetTypeInfo().IsAssignableFrom(type);
+                var flag = tInfo.IsPublic && !tInfo.IsAbstract && tInfo.IsClass && tInfo.GetInterfaces().Any(i => i.GetTypeInfo().IsGenericType && i.GetGenericTypeDefinition() == typeof(IRepository<>));
+                var flag2 = tInfo.IsPublic && !tInfo.IsAbstract && tInfo.IsClass && tInfo.GetInterfaces().Any(i => i.GetTypeInfo().IsGenericType && i.GetGenericTypeDefinition() == typeof(IRepository<,>));
+
+                return flag || flag2;
             };
             var impls = assembly.GetTypes().Where(filter).ToList();
             var interfaceImpls = new List<InterfaceImplPair>();
@@ -51,7 +68,14 @@ namespace Evol.Domain.Ioc
                 return interfaceImpls;
             impls.ForEach(t =>
             {
-                var @interface = t.GetTypeInfo().GetInterfaces().SingleOrDefault(i => i.GetTypeInfo().IsGenericType && (typeof(IRepository<>)).GetTypeInfo().IsAssignableFrom(i));
+                var @interface = t.GetTypeInfo().GetInterfaces().SingleOrDefault(i =>
+                        {
+                            var interfaces = i.GetTypeInfo().GetInterfaces();
+                            var flag = interfaces.Any(i2 => i2.GetTypeInfo().IsGenericType && i2.GetGenericTypeDefinition() == typeof(IRepository<>));
+                            var flag2 = interfaces.Any(i2 => i2.GetTypeInfo().IsGenericType && i2.GetGenericTypeDefinition() == typeof(IRepository<,>));
+                            return flag || flag2;
+                        }
+                    );
                 interfaceImpls.Add(new InterfaceImplPair() { Interface = @interface, Impl = t });
             });
             return interfaceImpls;

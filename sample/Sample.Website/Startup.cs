@@ -9,12 +9,15 @@ using Autofac;
 using Autofac.Extensions.DependencyInjection;
 using Swashbuckle.AspNetCore.Swagger;
 using System.IO;
+using Sample.Website.Core.Filters;
+using Sample.Website.Core;
+using Microsoft.AspNetCore.Http;
 
 namespace Sample.Website
 {
     public partial class Startup
     {
-        public Startup(IHostingEnvironment env, IConfiguration config)
+        public Startup(IHostingEnvironment env, IConfiguration config, IHttpContextAccessor HttpContextAccessor)
         {
             HostingEnvironment = env;
             Configuration = config;
@@ -31,6 +34,10 @@ namespace Sample.Website
 
         public IConfiguration Configuration { get; }
 
+        public IContainer AppContainer { get; private set; }
+
+        public IHttpContextAccessor HttpContextAccessor { get; private set; }
+
         ///// <summary>
         ///// 自定义强类型配置
         ///// </summary>
@@ -39,9 +46,17 @@ namespace Sample.Website
         // This method gets called by the runtime. Use this method to add services to the container.
         public IServiceProvider ConfigureServices(IServiceCollection services)
         {
+            //services.Configure<IISOptions>(options =>
+            //{
+            //    options.ForwardClientCertificate = false;
+            //});
+
             services.AddDbContext<EvolSampleDbContext>(options =>
-        options.UseMySQL(Configuration.GetConnectionString("evolsampleConnection")));
-            services.AddMvc().AddControllersAsServices();
+        options.UseMySql(Configuration.GetConnectionString("evolsampleConnection")));
+            services.AddMvc(options =>
+            {
+                //options.Filters.Add(typeof(FriendExceptionFilterAttribute));
+            }).AddControllersAsServices();
 
             // Register the Swagger generator, defining one or more Swagger documents
             services.AddSwaggerGen(c =>
@@ -58,12 +73,14 @@ namespace Sample.Website
             //为应用配置初始化IocManager
             IServiceProvider serviceProvider = null;
             var containerBuilder = new ContainerBuilder();
-            ConfigAppPerInit(containerBuilder, () => serviceProvider);
-            containerBuilder.Populate(services);
-            var container = containerBuilder.Build();
-            ConfigApp();
-            serviceProvider = new AutofacServiceProvider(container);
 
+            ConfigAppPerInit(containerBuilder, () => serviceProvider);
+            ConfigApp();
+            containerBuilder.Populate(services);
+            AppContainer = containerBuilder.Build();
+
+
+            serviceProvider = new AutofacServiceProvider(AppContainer);
             return serviceProvider;
 
             ////添加自定义强类型配置到依赖注入
@@ -86,7 +103,8 @@ namespace Sample.Website
             if (env.IsDevelopment())
             {
                 app.UseBrowserLink();
-                app.UseDeveloperExceptionPage();
+                //app.UseDeveloperExceptionPage();
+                app.UseCanContinueExceptionHandler("/Home/Error");
             }
             else
             {
@@ -109,6 +127,14 @@ namespace Sample.Website
                 routes.MapRoute(
                     name: "default",
                     template: "{controller=Home}/{action=Index}/{id?}");
+            });
+
+            app.UseMvc(routes =>
+            {
+                routes.MapRoute(
+                  name: "areas",
+                  template: "{area:exists}/{controller=Home}/{action=Index}/{id?}" 
+                );
             });
         }
     }
